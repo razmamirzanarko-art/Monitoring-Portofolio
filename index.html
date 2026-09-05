@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Performa: Monitoring Portofolio</title>
+    <title>Performa: Monitoring Portofolio Banjar</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -111,7 +111,7 @@
     </main>
 
     <script>
-        const scriptUrl = "https://script.google.com/macros/s/AKfycbx9O3afIgG6NYPTDUTPTYDDMAP7UBgnLlkeLiTQhUhcBKParyKn_YtsVrpgmBekpC4q4A/exec";
+        const scriptUrl = "https://script.google.com/macros/s/AKfycby5H3SSyB43D9SoYXowbRmLRDzD5kzQUjS3tKXpybAZeo1MyfnOkuEz5ex6_3kqcFNrJw/exec";
         
         let allRowsData = [];
         let chartRateInstance = null;
@@ -181,7 +181,6 @@
             const branchSet = new Set();
             rows.forEach(r => {
                 const keys = Object.keys(r);
-                // Cari key kolom yang mengandung kata branch, cabang, atau lokasi
                 const branchKey = keys.find(k => {
                     const lk = k.toLowerCase();
                     return lk.includes('branch') || lk.includes('cabang') || lk.includes('lokasi');
@@ -229,7 +228,6 @@
 
             rows.forEach(row => {
                 const keys = Object.keys(row);
-                // Deteksi nama kolom secara otomatis
                 const bpKey = keys.find(k => k.toLowerCase().includes('bp') || k.toLowerCase().includes('partner') || k.toLowerCase().includes('nama')) || keys[1] || keys[0];
                 const statusKey = keys.find(k => k.toLowerCase().includes('status') || k.toLowerCase().includes('payment')) || keys[2];
                 const dateKey = keys.find(k => k.toLowerCase().includes('date') || k.toLowerCase().includes('tanggal') || k.toLowerCase().includes('payment')) || keys[3];
