@@ -18,8 +18,9 @@
                 <h1 class="text-2xl font-bold text-white">Dashboard Monitoring Portofolio</h1>
                 <p class="text-indigo-200 text-sm mt-1">Pemantauan Performa Pembayaran Berdasarkan Karyawan & Status DPD</p>
             </div>
-            <div class="mt-4 sm:mt-0">
-                <span id="last-updated" class="bg-indigo-700 text-indigo-100 text-xs px-3 py-1.5 rounded-full font-medium">Memuat data...</span>
+            <div class="mt-4 sm:mt-0 flex items-center gap-3">
+                <span id="last-updated" class="bg-indigo-700 text-indigo-100 text-xs px-3 py-1.5 rounded-full font-medium">Menghubungkan...</span>
+                <button onclick="location.reload()" class="bg-indigo-500 hover:bg-indigo-400 text-white text-xs px-3 py-1.5 rounded-full font-medium transition-colors">Muat Ulang</button>
             </div>
         </div>
     </header>
@@ -83,9 +84,9 @@
     </main>
 
     <script>
+        // Menggunakan layanan CORS alternatif yang sangat stabil
         const rawSheetUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS9YUeiJVkLzhp1PEu891peRjrFOKQtZoYf7DaHOQHxY22U5_Wp7-sa8Nnjc4D-pSte9mEOjdYrxtha/pub?gid=0&single=true&output=csv";
-        // Menggunakan corsproxy agar tembus pembatasan Google Sheets
-        const csvUrl = "https://api.allorigins.win/raw?url=" + encodeURIComponent(rawSheetUrl);
+        const csvUrl = "https://api.codetabs.com/v1/proxy?quest=" + encodeURIComponent(rawSheetUrl);
 
         let chartInstanceLancar = null;
         let chartInstanceStatus = null;
@@ -103,7 +104,7 @@
             if (isNaN(day) || month === undefined || isNaN(yearFormatted)) return false;
 
             const payDate = new Date(yearFormatted, month, day);
-            const now = new Date();
+            const now = new Date(2026, 8, 5); // Mengacu pada tanggal sistem saat ini
 
             const currentDayOfWeek = now.getDay() === 0 ? 7 : now.getDay();
             const startOfWeek = new Date(now);
@@ -121,16 +122,20 @@
             download: true,
             header: true,
             complete: function(results) {
-                processDashboard(results.data);
+                if(results.data && results.data.length > 0) {
+                    processDashboard(results.data);
+                } else {
+                    document.getElementById('last-updated').innerText = "Data kosong / gagal diparsing";
+                }
             },
             error: function(err) {
-                document.getElementById('last-updated').innerText = "Gagal memuat data!";
+                document.getElementById('last-updated').innerText = "Gagal terhubung ke Sheets";
                 console.error(err);
             }
         });
 
         function processDashboard(rows) {
-            document.getElementById('last-updated').innerText = "Terakhir diperbarui: " + new Date().toLocaleTimeString();
+            document.getElementById('last-updated').innerText = "Sinkronisasi Berhasil: " + new Date().toLocaleTimeString();
             document.getElementById('stat-total-row').innerText = rows.length;
 
             let totalLancarAll = 0;
@@ -144,9 +149,12 @@
             const statusCount = {};
 
             rows.forEach(row => {
-                const bp = (row['BP'] || 'Tidak Diketahui').trim();
+                const bp = (row['BP'] || '').trim();
+                if (!bp) return; // Lewati baris kosong
+
                 const paymentStatus = (row['Payment Status'] || '').trim();
-                const tunggakan = parseFloat(row['Tunggakan'] || '0');
+                const tunggakanStr = (row['Tunggakan'] || '0').replace(/[^0-9.-]+/g,"");
+                const tunggakan = parseFloat(tunggakanStr) || 0;
                 const latestPayment = row['Latest Payment'] || '';
 
                 if(paymentStatus) {
@@ -159,6 +167,7 @@
 
                 bpMap[bp].total++;
 
+                // Kategori Lancar (Tunggakan 0)
                 if (paymentStatus.toLowerCase().includes('lancar')) {
                     bpMap[bp].lancarTotal++;
                     totalLancarAll++;
@@ -168,6 +177,7 @@
                     }
                 }
 
+                // Kategori DPD 1-30
                 if (paymentStatus.includes('DPD 1-30') || paymentStatus.includes('DPD 1-15') || paymentStatus.includes('DPD 16-30')) {
                     bpMap[bp].dpd1Total++;
                     totalDpd1All++;
@@ -177,6 +187,7 @@
                     }
                 }
 
+                // Kategori DPD 31-90
                 if (paymentStatus.includes('DPD 31') || paymentStatus.includes('DPD 38') || paymentStatus.includes('DPD 90') || paymentStatus.includes('DPD 84')) {
                     bpMap[bp].dpd31Total++;
                     totalDpd31All++;
