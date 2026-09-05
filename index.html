@@ -3,21 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Monitoring Portofolio Banjar</title>
-    <!-- Tailwind CSS -->
+    <title>Dashboard Monitoring Portofolio</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- PapaParse untuk membaca CSV dari Google Sheets -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        body { font-family: 'Inter', sans-serif; }
-    </style>
+    <style>body { font-family: 'Inter', sans-serif; }</style>
 </head>
 <body class="bg-gray-50 text-slate-800 antialiased">
 
-    <!-- Header -->
     <header class="bg-indigo-600 shadow-md">
         <div class="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8 flex flex-col sm:flex-row justify-between items-center">
             <div>
@@ -32,7 +26,6 @@
 
     <main class="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
         
-        <!-- Kartu Ringkasan Utama -->
         <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
             <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
                 <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Total Data / Baris</p>
@@ -55,23 +48,17 @@
             </div>
         </div>
 
-        <!-- Grafik Analisis -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
             <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
                 <h3 class="text-base font-semibold text-slate-700 mb-4">Performa Pembayaran Lancar per Karyawan (BP)</h3>
-                <div class="relative h-72">
-                    <canvas id="chartLancarBP"></canvas>
-                </div>
+                <div class="relative h-72"><canvas id="chartLancarBP"></canvas></div>
             </div>
             <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
                 <h3 class="text-base font-semibold text-slate-700 mb-4">Distribusi Status Pembayaran (Payment Status)</h3>
-                <div class="relative h-72">
-                    <canvas id="chartStatus"></canvas>
-                </div>
+                <div class="relative h-72"><canvas id="chartStatus"></canvas></div>
             </div>
         </div>
 
-        <!-- Tabel Performa Karyawan (BP) -->
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-8">
             <div class="px-6 py-4 border-b border-gray-100">
                 <h3 class="text-base font-semibold text-slate-700">Rincian Performa per Karyawan / BP</h3>
@@ -89,30 +76,28 @@
                             <th class="px-6 py-3">DPD 31-90 (Total / Bayar Min. Ini)</th>
                         </tr>
                     </thead>
-                    <tbody id="table-bp-body" class="divide-y divide-gray-100 text-sm text-slate-600">
-                        <!-- Data dimasukkan via JavaScript -->
-                    </tbody>
+                    <tbody id="table-bp-body" class="divide-y divide-gray-100 text-sm text-slate-600"></tbody>
                 </table>
             </div>
         </div>
-
     </main>
 
     <script>
-        const csvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS9YUeiJVkLzhp1PEu891peRjrFOKQtZoYf7DaHOQHxY22U5_Wp7-sa8Nnjc4D-pSte9mEOjdYrxtha/pub?gid=0&single=true&output=csv";
+        const rawSheetUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS9YUeiJVkLzhp1PEu891peRjrFOKQtZoYf7DaHOQHxY22U5_Wp7-sa8Nnjc4D-pSte9mEOjdYrxtha/pub?gid=0&single=true&output=csv";
+        // Menggunakan corsproxy agar tembus pembatasan Google Sheets
+        const csvUrl = "https://api.allorigins.win/raw?url=" + encodeURIComponent(rawSheetUrl);
 
-        // Fungsi untuk mengecek apakah sebuah tanggal masuk dalam rentang "Minggu Ini"
+        let chartInstanceLancar = null;
+        let chartInstanceStatus = null;
+
         function isThisWeek(dateString) {
             if (!dateString) return false;
-            // Parsing format tanggal (asumsi format dd-mmm-yy atau standar Date parse)
-            const parts = dateString.split('-');
+            const parts = dateString.trim().split('-');
             if (parts.length !== 3) return false;
             
             const months = { 'Jan': 0, 'Feb': 1, 'Mar': 2, 'Apr': 3, 'May': 4, 'Jun': 5, 'Jul': 6, 'Aug': 7, 'Sep': 8, 'Oct': 9, 'Nov': 10, 'Dec': 11 };
             const day = parseInt(parts[0]);
             const month = months[parts[1]];
-            let year = parseInt(parts[1]); // Cek format tahun
-            // Jika tahun format 2 digit misal 26 -> 2026
             let yearFormatted = parts[2].length === 2 ? 2000 + parseInt(parts[2]) : parseInt(parts[2]);
 
             if (isNaN(day) || month === undefined || isNaN(yearFormatted)) return false;
@@ -120,7 +105,6 @@
             const payDate = new Date(yearFormatted, month, day);
             const now = new Date();
 
-            // Mendapatkan awal minggu ini (Senin) dan akhir minggu ini (Minggu)
             const currentDayOfWeek = now.getDay() === 0 ? 7 : now.getDay();
             const startOfWeek = new Date(now);
             startOfWeek.setDate(now.getDate() - currentDayOfWeek + 1);
@@ -137,22 +121,22 @@
             download: true,
             header: true,
             complete: function(results) {
-                const data = results.data;
-                processDashboard(data);
+                processDashboard(results.data);
+            },
+            error: function(err) {
+                document.getElementById('last-updated').innerText = "Gagal memuat data!";
+                console.error(err);
             }
         });
 
         function processDashboard(rows) {
-            // Update waktu sinkronisasi
             document.getElementById('last-updated').innerText = "Terakhir diperbarui: " + new Date().toLocaleTimeString();
             document.getElementById('stat-total-row').innerText = rows.length;
 
             let totalLancarAll = 0;
             let totalLancarPaidAll = 0;
-            
             let totalDpd1All = 0;
             let totalDpd1PaidWeek = 0;
-
             let totalDpd31All = 0;
             let totalDpd31PaidWeek = 0;
 
@@ -160,29 +144,21 @@
             const statusCount = {};
 
             rows.forEach(row => {
-                const bp = row['BP'] || 'Tidak Diketahui';
+                const bp = (row['BP'] || 'Tidak Diketahui').trim();
                 const paymentStatus = (row['Payment Status'] || '').trim();
                 const tunggakan = parseFloat(row['Tunggakan'] || '0');
                 const latestPayment = row['Latest Payment'] || '';
 
-                // Hitung status payment secara umum untuk chart pie
-                statusCount[paymentStatus] = (statusCount[paymentStatus] || 0) + 1;
+                if(paymentStatus) {
+                    statusCount[paymentStatus] = (statusCount[paymentStatus] || 0) + 1;
+                }
 
                 if (!bpMap[bp]) {
-                    bpMap[bp] = {
-                        total: 0,
-                        lancarTotal: 0,
-                        lancarPaid: 0,
-                        dpd1Total: 0,
-                        dpd1PaidWeek: 0,
-                        dpd31Total: 0,
-                        dpd31PaidWeek: 0
-                    };
+                    bpMap[bp] = { total: 0, lancarTotal: 0, lancarPaid: 0, dpd1Total: 0, dpd1PaidWeek: 0, dpd31Total: 0, dpd31PaidWeek: 0 };
                 }
 
                 bpMap[bp].total++;
 
-                // Logika Lancar & Tunggakan 0
                 if (paymentStatus.toLowerCase().includes('lancar')) {
                     bpMap[bp].lancarTotal++;
                     totalLancarAll++;
@@ -192,7 +168,6 @@
                     }
                 }
 
-                // Logika DPD 1-30 (mencakup string yang mengandung DPD 1-30 / rentang terkait)
                 if (paymentStatus.includes('DPD 1-30') || paymentStatus.includes('DPD 1-15') || paymentStatus.includes('DPD 16-30')) {
                     bpMap[bp].dpd1Total++;
                     totalDpd1All++;
@@ -202,7 +177,6 @@
                     }
                 }
 
-                // Logika DPD 31-90 (mencakup DPD 31-53, DPD 38-53, DPD 90+, dll)
                 if (paymentStatus.includes('DPD 31') || paymentStatus.includes('DPD 38') || paymentStatus.includes('DPD 90') || paymentStatus.includes('DPD 84')) {
                     bpMap[bp].dpd31Total++;
                     totalDpd31All++;
@@ -213,30 +187,22 @@
                 }
             });
 
-            // Hitung Persentase Global
-            const globalLancarPct = totalLancarAll > 0 ? ((totalLancarPaidAll / totalLancarAll) * 100).toFixed(1) : 0;
-            const globalDpd1Pct = totalDpd1All > 0 ? ((totalDpd1PaidWeek / totalDpd1All) * 100).toFixed(1) : 0;
-            const globalDpd31Pct = totalDpd31All > 0 ? ((totalDpd31PaidWeek / totalDpd31All) * 100).toFixed(1) : 0;
-
-            document.getElementById('stat-lancar').innerText = globalLancarPct + '%';
+            document.getElementById('stat-lancar').innerText = (totalLancarAll > 0 ? ((totalLancarPaidAll / totalLancarAll) * 100).toFixed(1) : 0) + '%';
             document.getElementById('stat-lancar-detail').innerText = ${totalLancarPaidAll} dari ${totalLancarAll} lancar;
 
-            document.getElementById('stat-dpd1').innerText = globalDpd1Pct + '%';
+            document.getElementById('stat-dpd1').innerText = (totalDpd1All > 0 ? ((totalDpd1PaidWeek / totalDpd1All) * 100).toFixed(1) : 0) + '%';
             document.getElementById('stat-dpd1-detail').innerText = ${totalDpd1PaidWeek} bayar minggu ini / ${totalDpd1All};
 
-            document.getElementById('stat-dpd31').innerText = globalDpd31Pct + '%';
+            document.getElementById('stat-dpd31').innerText = (totalDpd31All > 0 ? ((totalDpd31PaidWeek / totalDpd31All) * 100).toFixed(1) : 0) + '%';
             document.getElementById('stat-dpd31-detail').innerText = ${totalDpd31PaidWeek} bayar minggu ini / ${totalDpd31All};
 
-            // Render Tabel BP
             const tableBody = document.getElementById('table-bp-body');
             tableBody.innerHTML = '';
-
             const bpLabels = [];
             const bpLancarPcts = [];
 
             for (const [bpName, stats] of Object.entries(bpMap)) {
                 const bpLancarRate = stats.lancarTotal > 0 ? ((stats.lancarPaid / stats.lancarTotal) * 100).toFixed(1) : 0;
-                
                 bpLabels.push(bpName);
                 bpLancarPcts.push(parseFloat(bpLancarRate));
 
@@ -254,41 +220,18 @@
                 tableBody.appendChild(tr);
             }
 
-            // Render Grafik Lancar per BP
-            const ctxLancar = document.getElementById('chartLancarBP').getContext('2d');
-            new Chart(ctxLancar, {
+            if(chartInstanceLancar) chartInstanceLancar.destroy();
+            chartInstanceLancar = new Chart(document.getElementById('chartLancarBP').getContext('2d'), {
                 type: 'bar',
-                data: {
-                    labels: bpLabels,
-                    datasets: [{
-                        label: 'Persentase Lancar (Tunggakan 0) %',
-                        data: bpLancarPcts,
-                        backgroundColor: '#6366f1',
-                        borderRadius: 6
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: { y: { beginAtZero: true, max: 100 } }
-                }
+                data: { labels: bpLabels, datasets: [{ label: 'Persentase Lancar (Tunggakan 0) %', data: bpLancarPcts, backgroundColor: '#6366f1', borderRadius: 6 }] },
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, max: 100 } } }
             });
 
-            // Render Grafik Status Pembayaran
-            const ctxStatus = document.getElementById('chartStatus').getContext('2d');
-            new Chart(ctxStatus, {
+            if(chartInstanceStatus) chartInstanceStatus.destroy();
+            chartInstanceStatus = new Chart(document.getElementById('chartStatus').getContext('2d'), {
                 type: 'doughnut',
-                data: {
-                    labels: Object.keys(statusCount),
-                    datasets: [{
-                        data: Object.values(statusCount),
-                        backgroundColor: ['#10b981', '#f59e0b', '#ef4444', '#3b82f6', '#8b5cf6', '#ec4899']
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false
-                }
+                data: { labels: Object.keys(statusCount), datasets: [{ data: Object.values(statusCount), backgroundColor: ['#10b981', '#f59e0b', '#ef4444', '#3b82f6', '#8b5cf6', '#ec4899'] }] },
+                options: { responsive: true, maintainAspectRatio: false }
             });
         }
     </script>
