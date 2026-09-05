@@ -11,7 +11,6 @@
 </head>
 <body class="bg-gray-100 text-slate-800 antialiased">
 
-    <!-- Header & Navigasi ala Sistem Asli -->
     <div class="bg-white border-b border-gray-200 px-6 py-3 text-xs text-gray-500 flex justify-between items-center">
         <div>Home / Branches / Fa Monitoring / Pembayaran</div>
         <div id="last-updated" class="font-medium text-indigo-600">Menghubungkan...</div>
@@ -20,17 +19,24 @@
     <header class="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
         <div class="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
-                <h1 class="text-xl font-bold text-slate-800">Performa: Liang Anggang</h1>
+                <h1 id="header-branch-title" class="text-xl font-bold text-slate-800">Performa: Memuat...</h1>
                 <p class="text-xs text-gray-500 mt-0.5">Pembayaran</p>
                 <p class="text-xs font-semibold text-slate-700 mt-1">Minggu ini, 30 Agustus - 05 September 2026</p>
             </div>
-            <button onclick="loadData()" class="bg-slate-800 hover:bg-slate-700 text-white text-xs px-4 py-2 rounded font-medium transition-colors">Segarkan Data</button>
+            <div class="flex items-center gap-3">
+                <select id="branch-select" onchange="filterDataByBranch()" class="bg-gray-50 border border-gray-300 text-slate-700 text-xs rounded px-3 py-2 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <option value="">Semua Cabang</option>
+                </select>
+                <button onclick="loadData()" class="bg-slate-800 hover:bg-slate-700 text-white text-xs px-4 py-2 rounded font-medium transition-colors">Segarkan</button>
+            </div>
         </div>
     </header>
 
     <main class="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
         
-        <!-- 4 Kotak Kartu Ringkasan Atas -->
+        <!-- Notifikasi Error/Debug -->
+        <div id="error-banner" class="hidden bg-rose-50 border border-rose-200 text-rose-700 px-4 py-3 rounded-lg mb-6 text-xs font-medium"></div>
+
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
             <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200 border-l-4 border-l-slate-400">
                 <span class="text-xs font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded">Lancar</span>
@@ -54,7 +60,6 @@
             </div>
         </div>
 
-        <!-- Tabel Performa Business Partner (BP) Mirip Asli -->
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden mb-8">
             <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
                 <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wider">Performa Business Partner (BP)</h3>
@@ -65,9 +70,9 @@
                         <tr class="bg-gray-100 text-gray-600 border-b border-gray-200">
                             <th class="px-4 py-3 border-r border-gray-200" rowspan="2">Nama</th>
                             <th class="px-4 py-2 text-center border-r border-gray-200" colspan="2">Total pinjaman</th>
-                            <th class="px-4 py-2 text-center border-r border-gray-200" colspan="3">DPD 0 <br><span class="text-[10px] font-normal text-gray-500">Target 86%</span></th>
+                            <th class="px-4 py-2 text-center border-r border-gray-200" colspan="3">DPD 0 <br><span class="text-[10px] font-normal text-gray-500">Target 98%</span></th>
                             <th class="px-4 py-2 text-center border-r border-gray-200" colspan="3">DPD 1-30 <br><span class="text-[10px] font-normal text-gray-500">Target 55%</span></th>
-                            <th class="px-4 py-2 text-center border-r border-gray-200" colspan="3">DPD 31-90 <br><span class="text-[10px] font-normal text-gray-500">Target 15%</span></th>
+                            <th class="px-4 py-2 text-center border-r border-gray-200" colspan="3">DPD 31-90 <br><span class="text-[10px] font-normal text-gray-500">Target 13%</span></th>
                             <th class="px-4 py-2 text-center" colspan="2">DPD 90+</th>
                         </tr>
                         <tr class="bg-gray-50 text-gray-500 border-b border-gray-200 font-medium">
@@ -86,12 +91,13 @@
                             <th class="px-3 py-2">Terbayar</th>
                         </tr>
                     </thead>
-                    <tbody id="table-bp-body" class="divide-y divide-gray-200 text-slate-700"></tbody>
+                    <tbody id="table-bp-body" class="divide-y divide-gray-200 text-slate-700">
+                        <tr><td colspan="14" class="px-4 py-6 text-center text-gray-400">Menunggu data dimuat...</td></tr>
+                    </tbody>
                 </table>
             </div>
         </div>
 
-        <!-- Grafik Visualisasi Tambahan -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
                 <h3 class="text-sm font-bold text-slate-700 mb-4">Grafik Rate DPD 0 (Lancar) per BP</h3>
@@ -107,8 +113,15 @@
     <script>
         const scriptUrl = "https://script.google.com/macros/s/AKfycbx9O3afIgG6NYPTDUTPTYDDMAP7UBgnLlkeLiTQhUhcBKParyKn_YtsVrpgmBekpC4q4A/exec";
         
+        let allRowsData = [];
         let chartRateInstance = null;
         let chartDistInstance = null;
+
+        function showError(msg) {
+            const banner = document.getElementById('error-banner');
+            banner.textContent = msg;
+            banner.classList.remove('hidden');
+        }
 
         function isThisWeek(dateString) {
             if (!dateString) return false;
@@ -139,35 +152,93 @@
 
         function loadData() {
             document.getElementById('last-updated').innerText = "Mengambil data...";
+            document.getElementById('error-banner').classList.add('hidden');
+
             fetch(scriptUrl)
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) throw new Error("HTTP error! Status: " + response.status);
+                    return response.json();
+                })
                 .then(data => {
                     if(data && data.length > 0) {
-                        processDashboard(data);
+                        allRowsData = data;
+                        populateBranchDropdown(data);
+                        filterDataByBranch();
+                        document.getElementById('last-updated').innerText = "Terakhir disinkron: " + new Date().toLocaleTimeString();
                     } else {
+                        showError("Data dari Google Sheets kosong atau format salah.");
                         document.getElementById('last-updated').innerText = "Data kosong!";
                     }
                 })
                 .catch(err => {
+                    showError("Gagal mengambil data: " + err.message + ". Pastikan Apps Script sudah di-deploy dengan akses 'Anyone' (Siapa saja).");
                     document.getElementById('last-updated').innerText = "Gagal memuat!";
                     console.error(err);
                 });
         }
 
+        function populateBranchDropdown(rows) {
+            const branchSet = new Set();
+            rows.forEach(r => {
+                const keys = Object.keys(r);
+                // Cari key kolom yang mengandung kata branch, cabang, atau lokasi
+                const branchKey = keys.find(k => {
+                    const lk = k.toLowerCase();
+                    return lk.includes('branch') || lk.includes('cabang') || lk.includes('lokasi');
+                });
+                const b = branchKey ? r[branchKey] : r['Branch'] || r['Cabang'];
+                if (b && typeof b === 'string' && b.trim() !== '') {
+                    branchSet.add(b.trim());
+                }
+            });
+
+            const select = document.getElementById('branch-select');
+            const currentVal = select.value;
+            select.innerHTML = '<option value="">Semua Cabang</option>';
+            branchSet.forEach(branch => {
+                const opt = document.createElement('option');
+                opt.value = branch;
+                opt.textContent = branch;
+                select.appendChild(opt);
+            });
+            if(currentVal) select.value = currentVal;
+        }
+
+        function filterDataByBranch() {
+            const selectedBranch = document.getElementById('branch-select').value;
+            document.getElementById('header-branch-title').innerText = selectedBranch ? "Performa: " + selectedBranch : "Performa: Semua Cabang";
+
+            const filteredRows = selectedBranch ? allRowsData.filter(r => {
+                const keys = Object.keys(r);
+                const branchKey = keys.find(k => {
+                    const lk = k.toLowerCase();
+                    return lk.includes('branch') || lk.includes('cabang') || lk.includes('lokasi');
+                });
+                const b = branchKey ? r[branchKey] : r['Branch'] || r['Cabang'];
+                return b && b.toString().trim() === selectedBranch;
+            }) : allRowsData;
+
+            processDashboard(filteredRows);
+        }
+
         loadData();
 
         function processDashboard(rows) {
-            document.getElementById('last-updated').innerText = "Terakhir disinkron: " + new Date().toLocaleTimeString();
-
             let sumLancarAktif = 0, sumDpd1Aktif = 0, sumDpd31Aktif = 0, sumDpd90Aktif = 0;
             const bpMap = {};
 
             rows.forEach(row => {
-                const bp = (row['BP'] || '').toString().trim();
+                const keys = Object.keys(row);
+                // Deteksi nama kolom secara otomatis
+                const bpKey = keys.find(k => k.toLowerCase().includes('bp') || k.toLowerCase().includes('partner') || k.toLowerCase().includes('nama')) || keys[1] || keys[0];
+                const statusKey = keys.find(k => k.toLowerCase().includes('status') || k.toLowerCase().includes('payment')) || keys[2];
+                const dateKey = keys.find(k => k.toLowerCase().includes('date') || k.toLowerCase().includes('tanggal') || k.toLowerCase().includes('payment')) || keys[3];
+
+                const bp = (row[bpKey] || '').toString().trim();
                 if (!bp) return;
 
-                const paymentStatus = (row['Payment Status'] || '').toString().trim().toUpperCase();
-                const latestPayment = row['Latest Payment'] || '';
+                const paymentStatus = (row[statusKey] || '').toString().trim().toUpperCase();
+                const latestPayment = row[dateKey] || '';
                 const isPaidThisWeek = isThisWeek(latestPayment);
 
                 if (!bpMap[bp]) {
@@ -183,16 +254,15 @@
                 bpMap[bp].aktifTotal++;
                 if (isPaidThisWeek) bpMap[bp].terbayarTotal++;
 
-                // Klasifikasi berdasarkan Payment Status
-                if (paymentStatus.includes('LANCAR') || paymentStatus.includes('DPD 0')) {
+                if (paymentStatus.includes('LANCAR') || paymentStatus.includes('DPD 0') || paymentStatus.includes('0')) {
                     bpMap[bp].dpd0Aktif++;
                     sumLancarAktif++;
                     if (isPaidThisWeek) bpMap[bp].dpd0Bayar++;
-                } else if (paymentStatus.includes('DPD 1') || paymentStatus.includes('DPD 1-30') || paymentStatus.includes('DPD 15') || paymentStatus.includes('DPD 30')) {
+                } else if (paymentStatus.includes('DPD 1') || paymentStatus.includes('DPD 1-30') || paymentStatus.includes('1-30')) {
                     bpMap[bp].dpd1Aktif++;
                     sumDpd1Aktif++;
                     if (isPaidThisWeek) bpMap[bp].dpd1Bayar++;
-                } else if (paymentStatus.includes('DPD 31') || paymentStatus.includes('DPD 38') || paymentStatus.includes('DPD 84') || paymentStatus.includes('DPD 90')) {
+                } else if (paymentStatus.includes('DPD 31') || paymentStatus.includes('DPD 31-90') || paymentStatus.includes('31-90')) {
                     bpMap[bp].dpd31Aktif++;
                     sumDpd31Aktif++;
                     if (isPaidThisWeek) bpMap[bp].dpd31Bayar++;
@@ -203,7 +273,6 @@
                 }
             });
 
-            // Update Kartu Summary Atas
             document.getElementById('summary-lancar-aktif').innerText = sumLancarAktif;
             document.getElementById('summary-dpd1-aktif').innerText = sumDpd1Aktif;
             document.getElementById('summary-dpd31-aktif').innerText = sumDpd31Aktif;
@@ -211,6 +280,11 @@
 
             const tableBody = document.getElementById('table-bp-body');
             tableBody.innerHTML = '';
+
+            if (Object.keys(bpMap).length === 0) {
+                tableBody.innerHTML = <tr><td colspan="14" class="px-4 py-6 text-center text-rose-500 font-medium">Data baris tidak terbaca. Pastikan baris pertama Google Sheets berisi judul kolom (Header).</td></tr>;
+                return;
+            }
             
             const chartLabels = [];
             const chartRates = [];
@@ -247,7 +321,6 @@
                 tableBody.appendChild(tr);
             }
 
-            // Render Chart
             if(chartRateInstance) chartRateInstance.destroy();
             chartRateInstance = new Chart(document.getElementById('chartRateLancar').getContext('2d'), {
                 type: 'bar',
